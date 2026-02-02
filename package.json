@@ -11,7 +11,7 @@
   "scripts": {
     "start": "bun run ./src/cli.ts",
     "build": "bun build ./src/cli.ts --compile --minify --outfile ./dist/voice-to-notion",
-    "build:linux": "bun build ./src/cli.ts --compile --minify --target=bun-linux-x64 --outfile ./dist/voice-to-notion-linux",
+    "build:linux": "bun build ./src/cli.ts --compile --minify --target=bun-linux-x64-musl --outfile ./dist/voice-to-notion-linux",
     "build:windows": "bun build ./src/cli.ts --compile --minify --target=bun-windows-x64 --outfile ./dist/voice-to-notion-windows.exe",
     "build:all": "bun run build && bun run build:linux && bun run build:windows",
     "typecheck": "tsc --noEmit",
