@@ -1,0 +1,42 @@
+name: Build Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build all platforms
+        run: |
+          mkdir -p dist
+          bun build ./src/cli.ts --compile --minify --target=bun-linux-x64-musl --outfile ./dist/voice-to-notion-linux
+          bun build ./src/cli.ts --compile --minify --target=bun-darwin-x64 --outfile ./dist/voice-to-notion-macos-x64
+          bun build ./src/cli.ts --compile --minify --target=bun-darwin-arm64 --outfile ./dist/voice-to-notion-macos-arm64
+          bun build ./src/cli.ts --compile --minify --target=bun-windows-x64 --outfile ./dist/voice-to-notion-windows.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/voice-to-notion-linux
+            dist/voice-to-notion-macos-x64
+            dist/voice-to-notion-macos-arm64
+            dist/voice-to-notion-windows.exe
+          generate_release_notes: true
