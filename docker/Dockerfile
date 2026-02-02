@@ -12,7 +12,7 @@ RUN cd /tmp && \
     chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
 
 # Install voice-to-notion binary
-RUN curl -L https://github.com/keithce/notion-voice-notes/releases/latest/download/voice-to-notion-linux -o /usr/local/bin/voice-to-notion \
+RUN wget -O /usr/local/bin/voice-to-notion https://github.com/keithce/notion-voice-notes/releases/latest/download/voice-to-notion-linux \
     && chmod +x /usr/local/bin/voice-to-notion
 
 USER node
