@@ -1,0 +1,33 @@
+{
+  "name": "notion-voice-notes",
+  "version": "1.0.0",
+  "description": "CLI tool to transcribe audio files and create Notion pages with AI summaries",
+  "module": "src/cli.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "voice-to-notion": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun run ./src/cli.ts",
+    "build": "bun build ./src/cli.ts --compile --minify --outfile ./dist/voice-to-notion",
+    "build:linux": "bun build ./src/cli.ts --compile --minify --target=bun-linux-x64 --outfile ./dist/voice-to-notion-linux",
+    "build:windows": "bun build ./src/cli.ts --compile --minify --target=bun-windows-x64 --outfile ./dist/voice-to-notion-windows.exe",
+    "build:all": "bun run build && bun run build:linux && bun run build:windows",
+    "typecheck": "tsc --noEmit",
+    "test:harness": "bun run ./test/harness.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
+    "@notionhq/client": "^5.9.0",
+    "groq-sdk": "^0.37.0",
+    "notion-helper": "^1.3.30",
+    "openai": "^6.17.0"
+  }
+}
