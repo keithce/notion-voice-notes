@@ -148,7 +148,7 @@ bun run build:all
 
 ## Credits
 
-This project was inspired by [Tom Frankly's](https://github.com/TomFrankly) excellent work:
+This project was inspired by [Thomas J Frank's](https://github.com/TomFrankly) excellent work:
 
 - **Original Implementation:** [pipedream-notion-voice-notes](https://github.com/TomFrankly/pipedream-notion-voice-notes)
 - **Tutorial:** [How to Transcribe Audio to Text with ChatGPT and Notion](https://thomasjfrank.com/how-to-transcribe-audio-to-text-with-chatgpt-and-notion/)
