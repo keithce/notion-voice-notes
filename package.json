@@ -18,7 +18,8 @@
     "test:harness": "bun run ./test/harness.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@typescript/native": "npm:typescript@^7.0.2"
   },
   "peerDependencies": {
     "typescript": "^5"
