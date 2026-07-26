@@ -1,0 +1,4 @@
+{
+  "typescript.experimental.useTsgo": true,
+  "js/ts.experimental.useTsgo": true
+}
