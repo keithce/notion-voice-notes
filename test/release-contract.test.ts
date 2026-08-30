@@ -85,5 +85,7 @@ test("voice releases dispatch the image build after checksummed assets exist", (
   expect(voiceReleaseWorkflow).toContain("voice_release=");
   expect(workflow).toContain("inputs.voice_release");
   expect(workflow).not.toContain("release:\n    types: [published]");
+  expect(dockerfile).toContain("ARG VOICE_RELEASE_PATH\n");
+  expect(dockerfile).not.toContain("VOICE_RELEASE_PATH=latest/download");
   expect(dockerfile).toContain("sha256sum -c");
 });
