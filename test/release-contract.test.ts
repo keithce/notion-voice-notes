@@ -37,4 +37,7 @@ test("latest is promoted only after the running image passes smoke tests", () =>
   expect(workflow).toContain("voice-to-notion --version");
   expect(workflow).toContain("ffmpeg -version");
   expect(workflow).toContain("/healthz");
+  expect(workflow).toMatch(
+    /aquasec\/trivy:0\.74\.0@sha256:[a-f0-9]{64}/,
+  );
 });

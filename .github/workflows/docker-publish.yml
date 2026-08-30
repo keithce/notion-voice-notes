@@ -173,13 +173,14 @@ jobs:
           docker exec "$container" ffmpeg -version | sed -n '1p'
 
       - name: Report image vulnerabilities
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
-        with:
-          image-ref: ${{ steps.release.outputs.image_ref }}
-          format: table
-          exit-code: '0'
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
+        run: |
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
+            image --exit-code 0 --ignore-unfixed --list-all-pkgs=false \
+            --scanners vuln --severity HIGH,CRITICAL "$IMAGE_REF"
 
       - name: Promote the verified image to latest
         if: github.event_name != 'pull_request'
