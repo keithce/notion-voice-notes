@@ -1,6 +1,8 @@
-FROM n8nio/n8n:latest
+FROM n8nio/n8n:stable@sha256:cfe2704ff858395503d42548206c2c99ea351a205e941063a9d9b77b0f404478
 
 USER root
+
+ARG VOICE_RELEASE_PATH=latest/download
 
 # Install ffmpeg (static build)
 RUN cd /tmp && \
@@ -12,7 +14,7 @@ RUN cd /tmp && \
     chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
 
 # Install voice-to-notion binary
-RUN wget -O /usr/local/bin/voice-to-notion https://github.com/keithce/notion-voice-notes/releases/latest/download/voice-to-notion-linux \
+RUN wget -O /usr/local/bin/voice-to-notion "https://github.com/keithce/notion-voice-notes/releases/${VOICE_RELEASE_PATH}/voice-to-notion-linux" \
     && chmod +x /usr/local/bin/voice-to-notion
 
 USER node

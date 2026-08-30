@@ -1,52 +1,213 @@
-name: Build and Push Docker Image
+name: Validate and publish n8n image
 
 on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
+      - 'docker/**'
+      - 'renovate.json'
+      - '.github/workflows/docker-publish.yml'
   push:
     branches: [main]
     paths:
+      - 'src/**'
+      - 'test/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsconfig.json'
       - 'docker/**'
+      - 'renovate.json'
       - '.github/workflows/docker-publish.yml'
   release:
     types: [published]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: n8n-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
-  build-and-push:
+  image:
+    name: Build and verify image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
+      - name: Check out the source revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          registry: ${{ env.REGISTRY }}
+          ref: ${{ github.event_name == 'release' && 'main' || github.ref }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check the source
+        run: bun run typecheck
+
+      - name: Run release contract tests
+        run: bun test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+      - name: Resolve release metadata
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+          base_ref=$(awk '/^FROM n8nio\/n8n:stable@sha256:/{print $2; exit}' docker/Dockerfile)
+          test -n "$base_ref"
+          base_digest=${base_ref##*@}
+          n8n_version=$(docker run --rm --entrypoint n8n "$base_ref" --version)
+          voice_release=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          source_sha=$(git rev-parse HEAD)
+          short_sha=${source_sha:0:7}
+          immutable_tag="n8n-${n8n_version}-src-${short_sha}-run-${RUN_ID}"
+          candidate_ref="${IMAGE_NAME}:${immutable_tag}"
+          if [ "$EVENT_NAME" = pull_request ]; then
+            image_ref="notion-voice-notes:pr-${PR_NUMBER}"
+          else
+            image_ref="$candidate_ref"
+          fi
+
+          {
+            echo "base_digest=$base_digest"
+            echo "candidate_ref=$candidate_ref"
+            echo "image_ref=$image_ref"
+            echo "immutable_tag=$immutable_tag"
+            echo "n8n_version=$n8n_version"
+            echo "source_sha=$source_sha"
+            echo "voice_release=$voice_release"
+            echo "voice_release_path=download/$voice_release"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build the image once
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./docker
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          file: ./docker/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.release.outputs.image_ref }}
+          build-args: |
+            VOICE_RELEASE_PATH=${{ steps.release.outputs.voice_release_path }}
+          labels: |
+            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.revision=${{ steps.release.outputs.source_sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=notion-voice-notes
+            org.opencontainers.image.version=${{ steps.release.outputs.immutable_tag }}
+            io.rproj.n8n.base.digest=${{ steps.release.outputs.base_digest }}
+            io.rproj.n8n.version=${{ steps.release.outputs.n8n_version }}
+            io.rproj.voice.release=${{ steps.release.outputs.voice_release }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: ${{ github.event_name != 'pull_request' }}
+          provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
+
+      - name: Smoke-test the built image
+        env:
+          EXPECTED_N8N_VERSION: ${{ steps.release.outputs.n8n_version }}
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
+        run: |
+          set -euo pipefail
+
+          container="n8n-image-smoke-$GITHUB_RUN_ID"
+          cleanup() {
+            docker rm --force --volumes "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container" \
+            --publish 127.0.0.1::5678 \
+            --env N8N_DIAGNOSTICS_ENABLED=false \
+            --env N8N_ENCRYPTION_KEY=release-contract-smoke-key \
+            "$IMAGE_REF" >/dev/null
+          port=$(docker port "$container" 5678/tcp | sed -n 's/.*://p')
+          test -n "$port"
+
+          healthy=false
+          for _ in $(seq 1 60); do
+            if curl --fail --silent "http://127.0.0.1:$port/healthz" >/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          [ "$healthy" = true ]
+
+          actual_n8n_version=$(docker exec "$container" n8n --version)
+          test "$actual_n8n_version" = "$EXPECTED_N8N_VERSION"
+          docker exec "$container" voice-to-notion --version
+          docker exec "$container" ffmpeg -version | sed -n '1p'
+
+      - name: Report image vulnerabilities
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
+        with:
+          image-ref: ${{ steps.release.outputs.image_ref }}
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Promote the verified image to latest
+        if: github.event_name != 'pull_request'
+        env:
+          CANDIDATE_REF: ${{ steps.release.outputs.candidate_ref }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test -n "$IMAGE_DIGEST"
+          docker buildx imagetools create \
+            --tag "${IMAGE_NAME}:latest" \
+            "${CANDIDATE_REF}@${IMAGE_DIGEST}"
+
+      - name: Summarize the verified release
+        if: always()
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          IMMUTABLE_TAG: ${{ steps.release.outputs.immutable_tag }}
+          N8N_VERSION: ${{ steps.release.outputs.n8n_version }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          VOICE_RELEASE: ${{ steps.release.outputs.voice_release }}
+        run: |
+          {
+            echo '## n8n image release'
+            echo
+            echo "- n8n: $N8N_VERSION"
+            echo "- voice-to-notion: $VOICE_RELEASE"
+            echo "- source: $SOURCE_SHA"
+            echo "- tag: $IMMUTABLE_TAG"
+            echo "- digest: ${IMAGE_DIGEST:-not published for pull requests}"
+          } >> "$GITHUB_STEP_SUMMARY"

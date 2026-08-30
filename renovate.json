@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", ":dependencyDashboard"],
+  "timezone": "America/New_York",
+  "schedule": ["before 4am"],
+  "labels": ["dependencies"],
+  "assignees": ["keithce"],
+  "reviewers": ["keithce"],
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Follow n8n's moving production channel while reviewing the exact base digest.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["n8nio/n8n"],
+      "matchCurrentValue": "stable",
+      "groupName": "n8n stable image"
+    }
+  ]
+}

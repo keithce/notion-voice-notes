@@ -15,6 +15,7 @@
     "build:windows": "bun build ./src/cli.ts --compile --minify --target=bun-windows-x64 --outfile ./dist/voice-to-notion-windows.exe",
     "build:all": "bun run build && bun run build:linux && bun run build:windows",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "test:harness": "bun run ./test/harness.ts"
   },
   "devDependencies": {
