@@ -94,6 +94,7 @@ jobs:
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_ID: ${{ github.run_id }}
           VOICE_RELEASE_INPUT: ${{ inputs.voice_release }}
         run: |
@@ -117,7 +118,7 @@ jobs:
 
           source_sha=$(git rev-parse HEAD)
           short_sha=${source_sha:0:7}
-          immutable_tag="n8n-${n8n_version}-src-${short_sha}-run-${RUN_ID}"
+          immutable_tag="n8n-${n8n_version}-src-${short_sha}-run-${RUN_ID}-attempt-${RUN_ATTEMPT}"
           candidate_ref="${IMAGE_NAME}:${immutable_tag}"
           created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 

@@ -67,6 +67,8 @@ test("only main can publish and all production runs serialize", () => {
   expect(workflow).toContain("n8n-image-production");
   expect(workflow).toContain("github.ref == 'refs/heads/main'");
   expect(workflow).toContain("github.event_name != 'pull_request'");
+  expect(workflow).toContain("github.run_attempt");
+  expect(workflow).toContain("-attempt-${RUN_ATTEMPT}");
 });
 
 test("voice releases dispatch the image build after checksummed assets exist", () => {
