@@ -15,7 +15,9 @@ test("the production image follows n8n stable by immutable digest", () => {
     /^FROM n8nio\/n8n:stable@sha256:[a-f0-9]{64}$/m,
   );
   expect(dockerfile).not.toContain("FROM n8nio/n8n:latest");
+  expect(dockerfile).toMatch(/ARG FFMPEG_VERSION=\d+\.\d+\.\d+/);
   expect(dockerfile).toMatch(/ARG FFMPEG_SHA256=[a-f0-9]{64}/);
+  expect(dockerfile).not.toContain("ffmpeg-release-amd64-static.tar.xz");
   expect(dockerfile).toContain("sha256sum -c -");
 });
 
@@ -34,13 +36,19 @@ test("every release input builds the current custom image", () => {
 });
 
 test("latest is promoted only after the running image passes smoke tests", () => {
-  const smoke = workflow.indexOf("name: Smoke-test the built image");
-  const push = workflow.indexOf("name: Push the verified immutable image");
-  const promote = workflow.indexOf("name: Promote the verified image to latest");
+  const publishJob = workflow.split("\n  publish:\n", 2)[1];
+  expect(publishJob).toBeDefined();
+
+  const smoke = publishJob!.indexOf("name: Smoke-test the built image");
+  const push = publishJob!.indexOf("name: Push the verified immutable image");
+  const promote = publishJob!.indexOf(
+    "name: Promote the verified image to latest",
+  );
 
   expect(smoke).toBeGreaterThan(-1);
   expect(push).toBeGreaterThan(smoke);
   expect(promote).toBeGreaterThan(push);
+  expect(publishJob).toContain("--prefer-index=false");
   expect(workflow).toContain("voice-to-notion --version");
   expect(workflow).toContain("ffmpeg -version");
   expect(workflow).toContain("/healthz");

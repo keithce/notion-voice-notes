@@ -349,6 +349,7 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx imagetools create \
+            --prefer-index=false \
             --tag "${IMAGE_NAME}:latest" \
             "${CANDIDATE_REF}@${IMAGE_DIGEST}"
 
