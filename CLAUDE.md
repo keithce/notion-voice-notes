@@ -109,3 +109,7 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+## File size limit
+
+A pre-commit hook (`scripts/check-file-tokens.ts`) rejects any staged file over 5,000 estimated tokens (bytes / 4, ~20,000 bytes). Keep each source file under that limit: split by responsibility, move types/constants/helpers into their own files, and re-export from an index if callers need one import path. Lockfiles, generated code, and binaries are ignored; add genuinely generated paths to `IGNORE_PATTERNS` in that script rather than bypassing with `--no-verify`.

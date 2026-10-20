@@ -146,6 +146,17 @@ bun run build:all
 #   voice-to-notion-windows.exe (Windows)
 ```
 
+## Development
+
+### File size limit (pre-commit hook)
+
+A pre-commit hook blocks committing any file over **5,000 estimated tokens** (bytes / 4, so ~20,000 bytes). Large files are hard for people and AI agents to read and edit safely, so split them by responsibility instead.
+
+- The hook is installed automatically by `bun install` (via `simple-git-hooks`). To (re)install manually: `bunx simple-git-hooks`.
+- Only staged files are checked. Lockfiles, generated code, minified bundles, snapshots, binaries, and media are ignored; the list lives in `scripts/check-file-tokens.ts`.
+- Check the whole tree: `bun run check:tokens -- --all`.
+- Emergency bypass: `git commit --no-verify`.
+
 ## Credits
 
 This project was inspired by [Thomas J Frank's](https://github.com/TomFrankly) excellent work:
