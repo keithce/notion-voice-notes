@@ -16,7 +16,7 @@ import { createVoiceNotePage, buildPreviewContent } from "./notion/index.ts";
 import { CLIError, FileNotFoundError, InvalidArgumentError } from "./utils/errors.ts";
 import { setVerbose, log, error, info, verbose } from "./utils/logger.ts";
 
-const VERSION = "1.0.0";
+import { version as VERSION } from "../package.json";
 
 const HELP = `
 voice-to-notion v${VERSION}
