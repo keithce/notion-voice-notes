@@ -2,9 +2,7 @@ import { expect, test } from "bun:test";
 import {
   chmodSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +11,8 @@ const baseDigest = `sha256:${"a".repeat(64)}`;
 const oldDigest = `sha256:${"b".repeat(64)}`;
 const resolver = new URL("../docker/resolve-n8n-base.sh", import.meta.url).pathname;
 
-function resolveBase(
+/** Run the resolver with isolated registry responses and collect its outputs. */
+async function resolveBase(
   event: string,
   publishedDigest: string,
   registryFailure = false,
@@ -23,8 +22,8 @@ function resolveBase(
     const docker = join(directory, "docker");
     const output = join(directory, "output");
     const calls = join(directory, "calls");
-    writeFileSync(output, "");
-    writeFileSync(
+    await Bun.write(output, "");
+    await Bun.write(
       docker,
       `#!/usr/bin/env bash
 set -euo pipefail
@@ -53,16 +52,16 @@ fi
     });
     return {
       exitCode: result.exitCode,
-      output: readFileSync(output, "utf8"),
-      calls: readFileSync(calls, "utf8").trim().split("\n"),
+      output: await Bun.file(output).text(),
+      calls: (await Bun.file(calls).text()).trim().split("\n"),
     };
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 }
 
-test("an unchanged upstream digest skips a scheduled rebuild", () => {
-  const result = resolveBase("schedule", baseDigest);
+test("an unchanged upstream digest skips a scheduled rebuild", async () => {
+  const result = await resolveBase("schedule", baseDigest);
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain("should_build=false\n");
   expect(result.calls).toEqual([
@@ -71,25 +70,25 @@ test("an unchanged upstream digest skips a scheduled rebuild", () => {
   ]);
 });
 
-test("a changed upstream digest rebuilds with that exact immutable base", () => {
-  const result = resolveBase("schedule", oldDigest);
+test("a changed upstream digest rebuilds with that exact immutable base", async () => {
+  const result = await resolveBase("schedule", oldDigest);
   expect(result.exitCode).toBe(0);
   expect(result.output).toContain("should_build=true\n");
   expect(result.output).toContain(`base_ref=n8nio/n8n:stable@${baseDigest}\n`);
   expect(result.output).toContain(`base_digest=${baseDigest}\n`);
 });
 
-test("source changes, pull requests, and manual runs still build an unchanged base", () => {
+test("source changes, pull requests, and manual runs still build an unchanged base", async () => {
   for (const event of ["push", "pull_request", "workflow_dispatch"]) {
-    const result = resolveBase(event, baseDigest);
+    const result = await resolveBase(event, baseDigest);
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain("should_build=true\n");
     expect(result.calls).toEqual(["n8nio/n8n:stable"]);
   }
 });
 
-test("registry failures fail the run instead of looking like an unchanged base", () => {
-  const result = resolveBase("schedule", baseDigest, true);
+test("registry failures fail the run instead of looking like an unchanged base", async () => {
+  const result = await resolveBase("schedule", baseDigest, true);
   expect(result.exitCode).not.toBe(0);
   expect(result.output).toBe("");
 });
