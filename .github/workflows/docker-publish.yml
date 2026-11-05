@@ -1,6 +1,8 @@
 name: Validate and publish n8n image
 
 on:
+  schedule:
+    - cron: '17 * * * *'
   pull_request:
     paths:
       - 'src/**'
@@ -9,7 +11,6 @@ on:
       - 'bun.lock'
       - 'tsconfig.json'
       - 'docker/**'
-      - 'renovate.json'
       - '.github/workflows/docker-publish.yml'
       - '.github/workflows/release.yml'
   push:
@@ -21,7 +22,6 @@ on:
       - 'bun.lock'
       - 'tsconfig.json'
       - 'docker/**'
-      - 'renovate.json'
       - '.github/workflows/docker-publish.yml'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -76,7 +76,9 @@ jobs:
     permissions:
       contents: read
     outputs:
-      base_digest: ${{ steps.release.outputs.base_digest }}
+      base_digest: ${{ steps.base.outputs.base_digest }}
+      base_ref: ${{ steps.base.outputs.base_ref }}
+      should_build: ${{ steps.base.outputs.should_build }}
       candidate_ref: ${{ steps.release.outputs.candidate_ref }}
       created: ${{ steps.release.outputs.created }}
       immutable_tag: ${{ steps.release.outputs.immutable_tag }}
@@ -90,9 +92,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve current n8n stable image
+        id: base
+        run: bash docker/resolve-n8n-base.sh
+
       - name: Resolve immutable inputs
+        if: steps.base.outputs.should_build == 'true'
         id: release
         env:
+          BASE_REF: ${{ steps.base.outputs.base_ref }}
           GH_TOKEN: ${{ github.token }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_ID: ${{ github.run_id }}
@@ -100,10 +108,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          base_ref=$(awk '/^FROM n8nio\/n8n:stable@sha256:/{print $2; exit}' docker/Dockerfile)
-          test -n "$base_ref"
-          base_digest=${base_ref##*@}
-          n8n_version=$(docker run --rm --entrypoint n8n "$base_ref" --version)
+          n8n_version=$(docker run --rm --entrypoint n8n "$BASE_REF" --version)
 
           latest_voice_release=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
           voice_release=${VOICE_RELEASE_INPUT:-$latest_voice_release}
@@ -123,7 +128,6 @@ jobs:
           created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           {
-            echo "base_digest=$base_digest"
             echo "candidate_ref=$candidate_ref"
             echo "created=$created"
             echo "immutable_tag=$immutable_tag"
@@ -159,6 +163,7 @@ jobs:
           load: true
           tags: ${{ env.LOCAL_IMAGE }}
           build-args: |
+            N8N_BASE_IMAGE=${{ needs.metadata.outputs.base_ref }}
             VOICE_RELEASE_PATH=${{ needs.metadata.outputs.voice_release_path }}
           labels: |
             org.opencontainers.image.created=${{ needs.metadata.outputs.created }}
@@ -217,7 +222,7 @@ jobs:
 
   publish:
     name: Publish verified image
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.metadata.outputs.should_build == 'true'
     needs: metadata
     runs-on: ubuntu-latest
     permissions:
@@ -251,6 +256,7 @@ jobs:
           load: true
           tags: ${{ env.LOCAL_IMAGE }}
           build-args: |
+            N8N_BASE_IMAGE=${{ needs.metadata.outputs.base_ref }}
             VOICE_RELEASE_PATH=${{ needs.metadata.outputs.voice_release_path }}
           labels: |
             org.opencontainers.image.created=${{ needs.metadata.outputs.created }}

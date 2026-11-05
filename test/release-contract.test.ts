@@ -10,10 +10,13 @@ const voiceReleaseWorkflow = await Bun.file(
   new URL("../.github/workflows/release.yml", import.meta.url),
 ).text();
 
-test("the production image follows n8n stable by immutable digest", () => {
-  expect(dockerfile).toMatch(
-    /^FROM n8nio\/n8n:stable@sha256:[a-f0-9]{64}$/m,
-  );
+test("the production image accepts the resolved n8n stable digest", () => {
+  expect(dockerfile).toContain("ARG N8N_BASE_IMAGE=n8nio/n8n:stable\n");
+  expect(dockerfile).toContain("FROM ${N8N_BASE_IMAGE}\n");
+  expect(
+    workflow.match(/N8N_BASE_IMAGE=\$\{\{ needs.metadata.outputs.base_ref \}\}/g),
+  ).toHaveLength(2);
+  expect(workflow).toContain('n8n "$BASE_REF" --version');
   expect(dockerfile).not.toContain("FROM n8nio/n8n:latest");
   expect(dockerfile).toMatch(/ARG FFMPEG_VERSION=\d+\.\d+\.\d+/);
   expect(dockerfile).toMatch(/ARG FFMPEG_SHA256=[a-f0-9]{64}/);
@@ -24,7 +27,8 @@ test("the production image follows n8n stable by immutable digest", () => {
 test("every release input builds the current custom image", () => {
   for (const required of [
     "pull_request:",
-    "release:",
+    "push:",
+    "schedule:",
     "workflow_dispatch:",
     "'src/**'",
     "'package.json'",
@@ -33,6 +37,14 @@ test("every release input builds the current custom image", () => {
   ]) {
     expect(workflow).toContain(required);
   }
+});
+
+test("scheduled runs publish only when the upstream base changes", () => {
+  expect(workflow).toContain("cron: '17 * * * *'");
+  expect(workflow).toContain("run: bash docker/resolve-n8n-base.sh");
+  expect(workflow).toContain("if: steps.base.outputs.should_build == 'true'");
+  const publishJob = workflow.split("\n  publish:\n", 2)[1];
+  expect(publishJob).toContain("needs.metadata.outputs.should_build == 'true'");
 });
 
 test("latest is promoted only after the running image passes smoke tests", () => {

@@ -121,6 +121,18 @@ Use `--json` flag to get structured output for parsing in automation tools:
 
 ## Docker Usage
 
+The image at `ghcr.io/keithce/notion-voice-notes:latest` wraps n8n's `stable`
+channel with `voice-to-notion` and ffmpeg. GitHub Actions checks the upstream
+n8n digest hourly and rebuilds when it differs from the last published image.
+Each build uses the exact resolved digest and must pass n8n health, CLI, and
+ffmpeg checks before publishing. No Renovate setup is needed in this repository.
+
+Source changes on `main`, new voice releases, and manual workflow runs also
+rebuild the wrapper using the current n8n stable image. The published image
+records the n8n version and base digest in its labels. The managed homelab n8n
+instance tracks this wrapper's digest through the existing homelab-infra update
+and deployment flow.
+
 ```dockerfile
 FROM oven/bun:latest
 
