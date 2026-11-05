@@ -121,6 +121,18 @@ Use `--json` flag to get structured output for parsing in automation tools:
 
 ## Docker Usage
 
+The image at `ghcr.io/keithce/notion-voice-notes:latest` wraps n8n's `stable`
+channel with `voice-to-notion` and ffmpeg. GitHub Actions checks the upstream
+n8n digest hourly and rebuilds when it differs from the last published image.
+Each build uses the exact resolved digest and must pass n8n health, CLI, and
+ffmpeg checks before publishing. No Renovate setup is needed in this repository.
+
+Source changes on `main`, new voice releases, and manual workflow runs also
+rebuild the wrapper using the current n8n stable image. The published image
+records the n8n version and base digest in its labels. The managed homelab n8n
+instance tracks this wrapper's digest through the existing homelab-infra update
+and deployment flow.
+
 The published image includes n8n, static FFmpeg/ffprobe, and the checksummed
 `voice-to-notion` release binary:
 
@@ -129,8 +141,10 @@ docker pull --platform linux/amd64 ghcr.io/keithce/notion-voice-notes:latest
 docker run --platform linux/amd64 --rm --entrypoint voice-to-notion ghcr.io/keithce/notion-voice-notes:latest --version
 ```
 
-`docker/Dockerfile` pins all base images by digest. Build locally with an
-explicit release that includes both the Linux binary and `SHA256SUMS`:
+The image workflow resolves n8n stable to an immutable digest for each build.
+`docker/Dockerfile` pins the FFmpeg and download-stage base images by digest.
+Build locally with an explicit release that includes both the Linux binary and
+`SHA256SUMS`:
 
 ```bash
 docker build --platform linux/amd64 --build-arg VOICE_RELEASE_PATH=download/v1.0.2 -t notion-voice-notes:local docker

@@ -1,3 +1,5 @@
+ARG N8N_BASE_IMAGE=n8nio/n8n:stable
+
 FROM mwader/static-ffmpeg:9.0.2-1@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822 AS ffmpeg
 
 # Download and verify outside the hardened runtime, which has no install/tar.
@@ -9,7 +11,7 @@ RUN wget "https://github.com/keithce/notion-voice-notes/releases/${VOICE_RELEASE
     grep ' voice-to-notion-linux$' SHA256SUMS > voice-to-notion-linux.sha256 && \
     sha256sum -c voice-to-notion-linux.sha256
 
-FROM n8nio/n8n:stable@sha256:8602f5dfacbe2c931eeafd010de0e68182310e9f309921e780ab69182e92b3ae
+FROM ${N8N_BASE_IMAGE}
 
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe
