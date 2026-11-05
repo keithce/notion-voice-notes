@@ -125,16 +125,19 @@ The published image includes n8n, static FFmpeg/ffprobe, and the checksummed
 `voice-to-notion` release binary:
 
 ```bash
-docker pull ghcr.io/keithce/notion-voice-notes:latest
-docker run --rm --entrypoint voice-to-notion ghcr.io/keithce/notion-voice-notes:latest --version
+docker pull --platform linux/amd64 ghcr.io/keithce/notion-voice-notes:latest
+docker run --platform linux/amd64 --rm --entrypoint voice-to-notion ghcr.io/keithce/notion-voice-notes:latest --version
 ```
 
 `docker/Dockerfile` pins all base images by digest. Build locally with an
 explicit release that includes both the Linux binary and `SHA256SUMS`:
 
 ```bash
-docker build --build-arg VOICE_RELEASE_PATH=download/v1.0.2 -t notion-voice-notes:local docker
+docker build --platform linux/amd64 --build-arg VOICE_RELEASE_PATH=download/v1.0.2 -t notion-voice-notes:local docker
 ```
+
+The Linux release binary targets x64. ARM64 hosts need x64 emulation to build
+and run this image.
 
 Tagged `v*` releases build and checksum the binaries, then dispatch the image
 workflow. The image is smoke-tested and scanned before its immutable tag is
