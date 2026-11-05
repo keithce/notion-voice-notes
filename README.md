@@ -121,15 +121,26 @@ Use `--json` flag to get structured output for parsing in automation tools:
 
 ## Docker Usage
 
-```dockerfile
-FROM oven/bun:latest
+The published image includes n8n, static FFmpeg/ffprobe, and the checksummed
+`voice-to-notion` release binary:
 
-# Download the binary
-RUN curl -L https://github.com/keithce/notion-voice-notes/releases/latest/download/voice-to-notion-linux -o /usr/local/bin/voice-to-notion \
-    && chmod +x /usr/local/bin/voice-to-notion
-
-# Your automation setup...
+```bash
+docker pull ghcr.io/keithce/notion-voice-notes:latest
+docker run --rm --entrypoint voice-to-notion ghcr.io/keithce/notion-voice-notes:latest --version
 ```
+
+`docker/Dockerfile` pins all base images by digest. Build locally with an
+explicit release that includes both the Linux binary and `SHA256SUMS`:
+
+```bash
+docker build --build-arg VOICE_RELEASE_PATH=download/v1.0.2 -t notion-voice-notes:local docker
+```
+
+Tagged `v*` releases build and checksum the binaries, then dispatch the image
+workflow. The image is smoke-tested and scanned before its immutable tag is
+promoted to `latest`. Production deployment is managed in
+[`homelab-infra/services/n8n`](https://github.com/keithce/homelab-infra/tree/main/services/n8n)
+with a reviewed image digest, cold SQLite snapshots, and automatic rollback.
 
 ## Building from Source
 
