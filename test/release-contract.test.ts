@@ -18,10 +18,18 @@ test("the production image accepts the resolved n8n stable digest", () => {
   ).toHaveLength(2);
   expect(workflow).toContain('n8n "$BASE_REF" --version');
   expect(dockerfile).not.toContain("FROM n8nio/n8n:latest");
-  expect(dockerfile).toMatch(/ARG FFMPEG_VERSION=\d+\.\d+\.\d+/);
-  expect(dockerfile).toMatch(/ARG FFMPEG_SHA256=[a-f0-9]{64}/);
-  expect(dockerfile).not.toContain("ffmpeg-release-amd64-static.tar.xz");
-  expect(dockerfile).toContain("sha256sum -c -");
+  expect(dockerfile).toMatch(
+    /^FROM mwader\/static-ffmpeg:\d+\.\d+\.\d+(?:-\d+)?@sha256:[a-f0-9]{64} AS ffmpeg$/m,
+  );
+  expect(dockerfile).toMatch(
+    /^FROM alpine:\d+\.\d+\.\d+@sha256:[a-f0-9]{64} AS voice$/m,
+  );
+  expect(dockerfile).toContain("COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg");
+  expect(dockerfile).toContain("COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe");
+  const runtime = dockerfile.split("FROM ${N8N_BASE_IMAGE}\n")[1]!;
+  expect(runtime).not.toContain("RUN ");
+  expect(runtime).toContain("COPY --from=voice --chmod=0755");
+  expect(runtime).toContain("USER node");
 });
 
 test("every release input builds the current custom image", () => {
@@ -65,7 +73,7 @@ test("latest is promoted only after the running image passes smoke tests", () =>
   expect(workflow).toContain("ffmpeg -version");
   expect(workflow).toContain("/healthz");
   expect(workflow).toMatch(
-    /aquasec\/trivy:0\.74\.0@sha256:[a-f0-9]{64}/,
+    /aquasec\/trivy:\d+\.\d+\.\d+@sha256:[a-f0-9]{64}/,
   );
 });
 
