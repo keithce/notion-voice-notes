@@ -58,8 +58,8 @@ export async function summarizeWithClaude(
     const response = await retry(
       async () => {
         return await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
+          model: "claude-haiku-5-5",
+          max_tokens: 16000,
           system: SYSTEM_PROMPT,
           messages: [
             {

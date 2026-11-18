@@ -1,6 +1,6 @@
 {
   "name": "notion-voice-notes",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool to transcribe audio files and create Notion pages with AI summaries",
   "module": "src/cli.ts",
   "type": "module",
