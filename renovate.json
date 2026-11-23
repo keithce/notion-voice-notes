@@ -20,6 +20,7 @@
   "labels": ["dependencies"],
   "assignees": ["keithce"],
   "reviewers": ["keithce"],
+  "assignAutomerge": true,
   "automerge": false,
   "automergeType": "pr",
   "platformAutomerge": false,
@@ -86,6 +87,12 @@
       "groupName": "Docker digests",
       "groupSlug": "docker-digests",
       "automerge": false
+    },
+    {
+      "description": "static-ffmpeg tags carry a numeric build revision (9.0.2-1); treat it as a build number so rebuilds and new upstream patches are both proposed.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["mwader/static-ffmpeg"],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-(?<build>\\d+))?$"
     },
     {
       "description": "docker/resolve-n8n-base.sh resolves n8nio/n8n:stable to a digest on every build and the hourly schedule rebuilds when it moves, so the Dockerfile ARG default stays a floating tag. docker-compose.yml uses this repository's own published latest image.",
