@@ -1,0 +1,97 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", ":dependencyDashboard", ":enableVulnerabilityAlerts", ":semanticCommits"],
+  "ignorePresets": [":pinDevDependencies"],
+  "timezone": "America/New_York",
+  "schedule": ["before 6am on monday"],
+  "dependencyDashboard": {
+    "enabled": true,
+    "autoclose": false,
+    "labels": ["dependencies"],
+    "osvVulnerabilitySummary": "all",
+    "reportAbandonment": true
+  },
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "description": "Security PRs skip the schedule and the release-age wait (Renovate forces minimumReleaseAge: null), so never automerge them. addLabels keeps the top-level \"dependencies\" label; labels would replace it.",
+    "automerge": false,
+    "addLabels": ["security"]
+  },
+  "labels": ["dependencies"],
+  "assignees": ["keithce"],
+  "reviewers": ["keithce"],
+  "automerge": false,
+  "automergeType": "pr",
+  "platformAutomerge": false,
+  "separateMinorPatch": true,
+  "customManagers": [
+    {
+      "description": "The Trivy scanner image is pinned by tag and digest in a workflow env var, which the github-actions manager does not read.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/[^/]+\\.ya?ml$/"],
+      "matchStrings": ["TRIVY_IMAGE:\\s*(?<depName>aquasec\\/trivy):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Update package.json ranges alongside bun.lock, including releases already inside the current range.",
+      "matchManagers": ["bun"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Every patch arrives in one weekly PR (renovate/patch-all). Renovate merges it itself once every check on it is green; repository auto-merge is off, so platformAutomerge stays false. The docker-publish workflow typechecks, tests and builds and smoke-tests the image on every PR that touches package.json, bun.lock, docker/** or the workflows, which covers every file Renovate updates here.",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "patch updates",
+      "groupSlug": "all",
+      "automerge": true,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "0.x patches can break, so they get their own weekly PR (renovate/patch-all-0.x) merged by a person; one 0.x patch cannot hold the automerged patch PR.",
+      "matchUpdateTypes": ["patch"],
+      "matchCurrentVersion": "/^[~^=v]*0\\./",
+      "groupName": "0.x patch updates",
+      "groupSlug": "all-0.x",
+      "automerge": false
+    },
+    {
+      "description": "Every minor update arrives in one weekly PR, merged by a person.",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "minor updates",
+      "groupSlug": "all-minor"
+    },
+    {
+      "description": "Require dashboard approval before opening breaking major upgrade PRs.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Routine action bumps and digest pins go in one weekly PR, merged by a person: PR CI runs only some of the actions release.yml and the publish job use.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "pinDigest", "digest"],
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions",
+      "automerge": false
+    },
+    {
+      "description": "Keep action patches and minors in that one PR.",
+      "matchManagers": ["github-actions"],
+      "separateMinorPatch": false
+    },
+    {
+      "description": "Image digest refreshes for the same tag go in one weekly PR, merged by a person.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["pin", "pinDigest", "digest"],
+      "groupName": "Docker digests",
+      "groupSlug": "docker-digests",
+      "automerge": false
+    },
+    {
+      "description": "docker/resolve-n8n-base.sh resolves n8nio/n8n:stable to a digest on every build and the hourly schedule rebuilds when it moves, so the Dockerfile ARG default stays a floating tag. docker-compose.yml uses this repository's own published latest image.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["n8nio/n8n", "ghcr.io/keithce/notion-voice-notes"],
+      "enabled": false
+    }
+  ]
+}
